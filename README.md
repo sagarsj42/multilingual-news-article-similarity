@@ -1,2 +1,3 @@
-# multilingual-news-article-similarity
-SemEval-2022 shared task on Multilingual News Article Similarity
+# Multilingual News Article Similarity
+
+SemEval-2022 shared task on 
