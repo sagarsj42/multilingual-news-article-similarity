@@ -17,8 +17,9 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 import torchmetrics
 
+import transformers
 from transformers import XLMRobertaTokenizer, XLMRobertaModel
-from transformers import get_linear_schedule_with_warmup
+# from transformers import get_linear_schedule_with_warmup
 
 print('loaded packages')
 
@@ -91,7 +92,7 @@ class LitSimilarityRegressor(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = AdamW(self.parameters(), lr=1e-5, betas=(0.9, 0.99), eps=1e-8, weight_decay=0.01)
-        scheduler = get_linear_schedule_with_warmup(optimizer, **self.scheduler_args)
+        scheduler = transformers.get_linear_schedule_with_warmup(optimizer, **self.scheduler_args)
 
         return [optimizer], [scheduler]
 
@@ -100,14 +101,14 @@ class LitSimilarityRegressor(pl.LightningModule):
         output = self(x1, x2)
         loss = F.mse_loss(input=output, target=scores)
 
-        return {'loss': loss, 'preds': output, 'target': scores}
+        return {'loss': loss, 'preds': output.clamp(min=1.0, max=4.0), 'target': scores}
 
     def validation_step(self, batch, batch_idx):
         x1, x2, scores = batch
         output = self(x1, x2)
         loss = F.mse_loss(input=output, target=scores)
 
-        return {'loss': loss, 'preds': output, 'target': scores}
+        return {'loss': loss, 'preds': output.clamp(min=1.0, max=4.0), 'target': scores}
 
     def predict_step(self, batch, batch_idx):
         x1, x2, _ = batch
@@ -117,7 +118,7 @@ class LitSimilarityRegressor(pl.LightningModule):
 
     def training_step_end(self, outs):
         loss = outs['loss']
-        preds = outs['preds'].clamp(min=1, max=4)
+        preds = outs['preds']
         target = outs['target']
 
         self.log('train/step/loss', self.train_loss(loss))
@@ -126,7 +127,7 @@ class LitSimilarityRegressor(pl.LightningModule):
 
     def validation_step_end(self, outs):
         loss = outs['loss']
-        preds = outs['preds'].clamp(min=1, max=4)
+        preds = outs['preds']
         target = outs['target']
 
         self.dev_loss(loss)
